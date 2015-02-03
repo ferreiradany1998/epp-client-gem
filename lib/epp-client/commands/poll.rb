@@ -20,7 +20,6 @@ module EPP
         else
           node['op'] = 'req'
         end
-
         node
       end
     end

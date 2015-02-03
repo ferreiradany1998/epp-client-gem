@@ -67,6 +67,39 @@ module EPP
       @options = DEFAULTS.merge(options)
     end
 
+
+      def login
+	print 'LOGIN'
+	doConnection
+
+        @error   = nil
+        login    = EPP::Commands::Login.new(@tag, @passwd, @options)
+        command  = EPP::Requests::Command.new(auth_tid, login)
+        request  = EPP::Request.new(command)
+        #print 'TEST'
+	#print request
+	
+
+	response = send_recv_frame(request)
+
+        return true #if response.code == 1000
+        #raise @error = ResponseError.new(response.code, response.message, response.to_xml)
+      end
+
+      def logout
+      	logout   = EPP::Commands::Logout.new
+        command  = EPP::Requests::Command.new(auth_tid, logout)
+        request  = EPP::Request.new(command)
+        response = send_recv_frame(request)
+
+        return true if response.code == 1500
+        raise @error = ResponseError.new(response.code, response.message, response.to_xml)
+      	
+        @sock.close # closes @conn
+        @conn = @sock = nil
+	
+      end
+
     # Sends a Hello Request to the server
     # @return [Boolean] True if greeting was returned
     def hello
@@ -178,55 +211,41 @@ module EPP
     #       # .. do stuff with logged in session ..
     #     end
     #   end
-    def connection
+    def connection 
+ 	return yield
+    end
+
+    def doConnection
+
+	print 'DOCONNECTION'
+
       @connection_errors = []
       addrinfo.each do |_,port,_,addr,_,_,_|
-        retried = false
-        begin
+        print port
+	print addr 
+	retried = false
+
+
+	begin
           @conn = TCPSocket.new(addr, port)
-        rescue Errno::EINVAL => e
-          if retried
+        rescue Errno::EINVAL, Errno::ENETUNREACH => e
             message = e.message.split(" - ")[1]
             raise Errno::EINVAL, "#{message}: TCPSocket.new(#{addr.inspect}, #{port.inspect})"
-          end
-
-          retried = true
-          retry
         end
+
 
         args = [@conn]
         args << options[:ssl_context] if options[:ssl_context]
         @sock = OpenSSL::SSL::SSLSocket.new(*args)
         @sock.sync_close = true
 
-        begin
           @sock.connect
           @greeting = recv_frame  # Perform initial recv
+      	print "HERE"
+	print @sock
+	print "\n"
+	end
 
-          return yield
-        rescue Errno::ECONNREFUSED, Errno::ECONNRESET, Errno::EHOSTUNREACH => e
-          @connection_errors << e
-          next # try the next address in the list
-        rescue OpenSSL::SSL::SSLError => e
-          # Connection error, most likely the IP isn't in the allow list
-          if e.message =~ /returned=5 errno=0/
-            @connection_errors << ConnectionError.new("SSL Connection error, IP may not be permitted to connect to #{@host}",
-               @conn.addr, @conn.peeraddr, e)
-            next
-          else
-            raise e
-          end
-        ensure
-          @sock.close # closes @conn
-          @conn = @sock = nil
-        end
-      end
-
-      # Should only get here if we didn't return from the block above
-
-      addrinfo(true) # Update our addrinfo in case the DNS has changed
-      raise @connection_errors.last unless @connection_errors.empty?
-      raise Errno::EHOSTUNREACH, "Failed to connect to host #{@host}"
     end
     private
       def addrinfo(refresh = false)
@@ -239,7 +258,7 @@ module EPP
         when 'AF_INET6', Socket::AF_INET6 then Socket::AF_INET6
         else nil end
 
-        Socket.getaddrinfo(@host, @options[:port], family, Socket::SOCK_STREAM)
+        Socket.getaddrinfo(@host, @options[:port], Socket::AF_INET, Socket::SOCK_STREAM)
       end
 
       # @return [String] next transaction id
@@ -264,15 +283,9 @@ module EPP
       # @raise [ResponseError] login failed
       # @see login_request
       def login!
-        @error   = nil
-        login    = EPP::Commands::Login.new(@tag, @passwd, @options)
-        command  = EPP::Requests::Command.new(auth_tid, login)
-        request  = EPP::Request.new(command)
-        response = send_recv_frame(request)
-
-        return true if response.code == 1000
-        raise @error = ResponseError.new(response.code, response.message, response.to_xml)
+	return true
       end
+
 
       # Perform logout
       #
@@ -280,13 +293,7 @@ module EPP
       # @raise [ResponseError] logout failed
       # @see logout_request
       def logout!
-        logout   = EPP::Commands::Logout.new
-        command  = EPP::Requests::Command.new(auth_tid, logout)
-        request  = EPP::Request.new(command)
-        response = send_recv_frame(request)
-
-        return true if response.code == 1500
-        raise @error = ResponseError.new(response.code, response.message, response.to_xml)
+      	return true
       end
 
       # Send a frame and receive its response
@@ -305,7 +312,8 @@ module EPP
       # @return [Integer] number of bytes written
       def send_frame(xml)
         xml = xml.to_s if xml.kind_of?(Request)
-        @sock.write([xml.size + HEADER_LEN].pack("N") + xml)
+
+	@sock.write([xml.size + HEADER_LEN].pack("N") + xml)
       end
 
       # Receive XML frame
@@ -321,7 +329,11 @@ module EPP
           len = header.unpack('N')[0]
 
           raise ServerError, "Bad frame header from server, should be greater than #{HEADER_LEN}" unless len > HEADER_LEN
-          @sock.read(len - HEADER_LEN)
+          result = @sock.read(len - HEADER_LEN)
+	  
+	  print "\n\n---RESPONSE---\n"
+	  print result
+ 	  result
         end
       end
   end

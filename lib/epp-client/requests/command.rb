@@ -1,4 +1,6 @@
 require File.expand_path('../abstract', __FILE__)
+require "securerandom"
+
 
 module EPP
   module Requests

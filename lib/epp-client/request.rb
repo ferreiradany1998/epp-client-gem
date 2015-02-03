@@ -33,6 +33,9 @@ module EPP
       @request.set_namespaces(@namespaces) if @request.respond_to?(:set_namespaces)
       root << @request.to_xml
 
+      print "\n\n---REQUEST---\n"	
+      print doc
+
       doc
     end
 

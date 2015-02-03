@@ -48,6 +48,7 @@ module EPP
     autoload :Transfer, File.expand_path('../epp-client/domain/transfer.rb',  __FILE__)
     autoload :Update,   File.expand_path('../epp-client/domain/update.rb',    __FILE__)
 
+    autoload :TransferWi, File.expand_path('../epp-client/domain/transfer_wi.rb',  __FILE__)
     autoload :CheckResponse,    File.expand_path('../epp-client/domain/check_response.rb',     __FILE__)
     autoload :CreateResponse,   File.expand_path('../epp-client/domain/create_response.rb',    __FILE__)
     autoload :DeleteResponse,   File.expand_path('../epp-client/domain/delete_response.rb',    __FILE__)

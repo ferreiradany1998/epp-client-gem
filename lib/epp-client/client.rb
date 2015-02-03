@@ -42,6 +42,14 @@ module EPP
 
     attr_reader :tag, :passwd, :host, :options
 
+    def login
+	@conn.login
+    end
+
+    def logout
+	@conn.logout
+    end
+
     def compatibility?
       @conn.is_a?(OldServer)
     end
